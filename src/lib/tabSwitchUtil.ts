@@ -46,23 +46,48 @@ export const applySwitchPreventionToFetch = (): void => {
   
   // Override fetch
   window.fetch = function(...args) {
-    // If we're returning from a tab switch, block non-critical requests
+    // If we're returning from a tab switch, handle special cases
     if (isReturningFromTabSwitch()) {
-      const url = args[0].toString();
+      const url = typeof args[0] === 'string' ? args[0] : args[0].toString();
       
-      // Block automatic auth/session requests
+      // Block automatic auth/session requests 
       if (url.includes('/auth/') || url.includes('/session')) {
-        console.log('Blocking automatic fetch due to tab switch', url);
+        console.log('Handling auth fetch during tab switch', url);
         
-        // Return a fake successful response
-        return Promise.resolve(new Response(JSON.stringify({
-          success: true,
-          data: null,
-        }), { status: 200 }));
+        // If there's a saved session in localStorage, return that instead
+        const cachedUser = localStorage.getItem('aditi_user_cache');
+        
+        // Return a fake successful response that doesn't nullify the session
+        return Promise.resolve(new Response(JSON.stringify({ 
+          data: { 
+            session: cachedUser ? { user: JSON.parse(cachedUser) } : null 
+          },
+          error: null
+        }), { 
+          status: 200,
+          headers: new Headers({
+            'Content-Type': 'application/json'
+          })
+        }));
       }
     }
     
     // Otherwise proceed with original fetch
     return originalFetch.apply(this, args);
   };
+  
+  // Additionally set up visibilitychange handler at the utility level
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      console.log('Tab visible again - maintaining session');
+      sessionStorage.setItem('returning_from_tab_switch', 'true');
+      document.body.classList.add('tab-just-activated');
+      
+      // Keep the session alive by extending flags timeout
+      setTimeout(() => {
+        sessionStorage.removeItem('returning_from_tab_switch');
+        document.body.classList.remove('tab-just-activated');
+      }, 2500); // Extended timeout
+    }
+  }, true); // Use capture to ensure this runs before other handlers
 }; 

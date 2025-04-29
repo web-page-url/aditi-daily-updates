@@ -61,6 +61,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(safetyTimer);
   }, []);
 
+  // Handle tab visibility changes to prevent session loss
+  useEffect(() => {
+    // Define handler to maintain session when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Check if we have a cached user but not a current user state
+        const cachedUser = localStorage.getItem(USER_CACHE_KEY);
+        if (cachedUser && !user) {
+          console.log('Tab visible - restoring user from cache');
+          try {
+            setUser(JSON.parse(cachedUser));
+          } catch (err) {
+            console.error('Error parsing cached user:', err);
+          }
+        }
+      }
+    };
+    
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Clean up listener
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]);
+
   // Set up auth state listener
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -88,6 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   // Quiet session check without loading spinner
   const checkSessionQuietly = async () => {
+    // Skip session check if returning from tab switch
+    if (typeof window !== 'undefined' && 
+        (sessionStorage?.getItem('returning_from_tab_switch') || 
+         sessionStorage?.getItem('prevent_auto_refresh'))) {
+      console.log('Skipping quiet session check due to tab switch');
+      return;
+    }
+    
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       
@@ -102,8 +137,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateUserData(session.user, false);
       } else if (!session && user) {
         // Only clear user if we have one set
-        setUser(null);
-        localStorage.removeItem(USER_CACHE_KEY);
+        // But check if we might be returning from a tab switch first
+        const cachedUser = localStorage.getItem(USER_CACHE_KEY);
+        if (!cachedUser) {
+          setUser(null);
+          localStorage.removeItem(USER_CACHE_KEY);
+        } else if (document.visibilityState !== 'visible') {
+          // Don't clear user during tab visibility changes
+          console.log('Preserving user during tab switch');
+        }
       }
     } catch (error) {
       console.error('Error checking session:', error);

@@ -34,16 +34,24 @@ export default function App({ Component, pageProps }: AppProps) {
           }
         }
         
+        // Preserve cached user across tab switches by ensuring it's not cleared
+        const cachedUser = localStorage.getItem('aditi_user_cache');
+        if (cachedUser) {
+          // Re-save it to refresh the storage timestamp
+          console.log('Re-caching user data during tab switch');
+          localStorage.setItem('aditi_user_cache', cachedUser);
+        }
+        
         // Remove the flags after a short delay
         setTimeout(() => {
           sessionStorage.removeItem('returning_from_tab_switch');
           document.body.classList.remove('tab-just-activated');
-        }, 1500); // Longer timeout to ensure all components respect the flag
+        }, 2500); // Extended timeout to ensure all components respect the flag
         
         // Remove the prevent_auto_refresh after a longer period
         setTimeout(() => {
           sessionStorage.removeItem('prevent_auto_refresh');
-        }, 3000);
+        }, 5000); // Extended from 3000 to 5000ms to give more time
       }
     };
     
@@ -88,10 +96,10 @@ export default function App({ Component, pageProps }: AppProps) {
         sessionStorage.removeItem('tab_switching_away');
         sessionStorage.setItem('returning_from_tab_switch', 'true');
         
-        // Clear focus flag after a delay
+        // Extended to prevent immediate clearing
         setTimeout(() => {
           sessionStorage.removeItem('returning_from_tab_switch');
-        }, 1500);
+        }, 2500);
         
         // Prevent default focus behavior
         if (e && typeof e.stopPropagation === 'function') {
@@ -105,6 +113,7 @@ export default function App({ Component, pageProps }: AppProps) {
       if (originalFocus) return originalFocus.call(window, e);
     };
     
+    // Cleanup function
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange, true);
       document.head.removeChild(style);

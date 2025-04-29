@@ -17,7 +17,23 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storageKey: 'aditi_supabase_auth',
+    storage: {
+      getItem: (key) => {
+        const storedSession = localStorage.getItem(key);
+        if (typeof window !== 'undefined' && storedSession && window.sessionStorage.getItem('returning_from_tab_switch')) {
+          console.log('Using cached session during tab switch');
+        }
+        return storedSession;
+      },
+      setItem: (key, value) => {
+        localStorage.setItem(key, value);
+      },
+      removeItem: (key) => {
+        localStorage.removeItem(key);
+      }
+    }
   },
   global: {
     fetch: async (url, options = {}) => {
@@ -28,9 +44,32 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       
       // Skip unnecessary fetches when returning from tab switch
       if (isReturningFromTabSwitch && typeof url === 'string' && url.includes('/auth/')) {
-        console.log('Skipping auth fetch during tab switch', url);
-        // Return a fake successful response to prevent errors
-        const mockResponse = new Response(JSON.stringify({ 
+        console.log('Handling auth fetch during tab switch:', url);
+        
+        // Try to use cached user if available
+        const cachedUser = localStorage.getItem('aditi_user_cache');
+        const cachedSession = localStorage.getItem('aditi_supabase_auth');
+        
+        if (cachedUser || cachedSession) {
+          console.log('Using cached user/session during tab switch');
+          
+          // Return a response that maintains the session
+          return new Response(JSON.stringify({ 
+            data: { 
+              session: cachedSession ? JSON.parse(cachedSession) : null,
+              user: cachedUser ? JSON.parse(cachedUser) : null
+            },
+            error: null
+          }), {
+            status: 200,
+            headers: new Headers({
+              'Content-Type': 'application/json'
+            })
+          });
+        }
+        
+        // If no cached data, return a neutral response
+        return new Response(JSON.stringify({ 
           data: { session: null },
           error: null
         }), {
@@ -39,7 +78,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
             'Content-Type': 'application/json'
           })
         });
-        return mockResponse;
       }
       
       // Add custom error handling for fetch operations
