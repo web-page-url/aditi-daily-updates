@@ -274,41 +274,78 @@ export default function UserDashboard() {
                   </thead>
                   <tbody className="bg-[#1e2538] divide-y divide-gray-700">
                     {userUpdates.map((update) => (
-                      <tr key={update.id} className={expandedRows[update.id] ? 'bg-[#262d40]' : ''}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {formatDate(update.created_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                          {/* {update.aditi_teams?.team_name || 'Unknown Team'} */}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(update.status)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-200 max-w-xs truncate">
-                          {expandedRows[update.id] ? (
-                            update.tasks_completed
-                          ) : (
-                            <div className="max-w-xs truncate">{update.tasks_completed}</div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {update.blocker_type ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900 text-red-200">
-                              {update.blocker_type}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">None</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          <button
-                            onClick={() => toggleRowExpansion(update.id)}
-                            className="text-purple-400 hover:text-purple-300"
-                          >
-                            {expandedRows[update.id] ? 'Collapse' : 'Expand'}
-                          </button>
-                        </td>
-                      </tr>
+                      <>
+                        <tr 
+                          key={update.id} 
+                          className={`${expandedRows[update.id] ? 'bg-[#262d40]' : ''} hover:bg-[#2a3349] cursor-pointer transition-colors duration-150`}
+                          onClick={() => toggleRowExpansion(update.id)}
+                        >     
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                            {formatDate(update.created_at)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                            {update.aditi_teams?.team_name || 'Unknown Team'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {getStatusBadge(update.status)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-200 max-w-xs truncate">
+                            {update.tasks_completed}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                            {update.blocker_type ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900 text-red-200">
+                                {update.blocker_type}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">None</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent row click from triggering
+                                toggleRowExpansion(update.id);
+                              }}
+                              className="text-purple-400 hover:text-purple-300 transition-colors duration-150"
+                            >
+                              {expandedRows[update.id] ? 'Collapse' : 'Expand'}
+                            </button>
+                          </td>
+                        </tr>
+                        {expandedRows[update.id] && (
+                          <tr className="bg-[#262d40]">
+                            <td colSpan={6} className="px-8 py-4 text-sm text-gray-200">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-2">
+                                <div>
+                                  <h4 className="font-medium text-purple-300 mb-2">Tasks Completed</h4>
+                                  <p className="whitespace-pre-wrap">{update.tasks_completed || 'None'}</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium text-purple-300 mb-2">Blockers</h4>
+                                  {update.blocker_type ? (
+                                    <div>
+                                      <p className="mb-1"><span className="font-medium">Type:</span> {update.blocker_type}</p>
+                                      <p className="mb-1"><span className="font-medium">Description:</span> {update.blocker_description || 'No description provided'}</p>
+                                      {update.expected_resolution_date && (
+                                        <p><span className="font-medium">Expected Resolution:</span> {formatDate(update.expected_resolution_date)}</p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p>No blockers reported</p>
+                                  )}
+                                </div>
+                                {update.additional_notes && (
+                                  <div className="lg:col-span-2">
+                                    <h4 className="font-medium text-purple-300 mb-2">Additional Notes</h4>
+                                    <p className="whitespace-pre-wrap">{update.additional_notes}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     ))}
                   </tbody>
                 </table>
