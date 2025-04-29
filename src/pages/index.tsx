@@ -63,7 +63,7 @@ export default function Home() {
         <meta property="og:title" content="Aditi Daily Employee Updates - Login" />
         <meta property="og:description" content="Secure login to Aditi employee task tracking and management system" />
         <meta property="og:image" content="/aditi.png" />
-        <meta property="og:url" content="https://aditi-daily-updates-v2.netlify.app/" />
+        <meta property="og:url" content="https://aditi-daily-updates.netlify.app/" />
         <meta property="og:type" content="website" />
         
         {/* Twitter Card Meta Tags */}
@@ -73,7 +73,7 @@ export default function Home() {
         <meta name="twitter:image" content="/aditi.png" />
         
         {/* Canonical URL */}
-        <link rel="canonical" href="https://aditi-daily-updates-v2.netlify.app/" />
+        <link rel="canonical" href="https://aditi-daily-updates.netlify.app/" />
         
         {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
