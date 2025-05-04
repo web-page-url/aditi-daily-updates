@@ -37,6 +37,13 @@ export default function ProtectedRoute({ children, allowedRoles = ['user', 'mana
       router.replace('/');
     }
     
+    // Restrict managers from accessing the daily update form
+    if (!isLoading && user && user.role === 'manager' && router.pathname === '/daily-update-form') {
+      console.log('Manager attempting to access daily update form, redirecting to dashboard');
+      router.replace('/dashboard');
+      return;
+    }
+    
     // If user exists but doesn't have required role, redirect to appropriate page
     if (!isLoading && user && !allowedRoles.includes(user.role)) {
       // Redirect based on role

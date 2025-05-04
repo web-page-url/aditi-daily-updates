@@ -41,7 +41,7 @@ export default function UserDashboard() {
       
       const { data, error } = await supabase
         .from('aditi_daily_updates')
-        .select('*, aditi_teams(*)')
+        .select('*')
         .eq('employee_email', user?.email)
         .gte('created_at', `${dateRange.start}T00:00:00.000Z`)
         .lte('created_at', `${dateRange.end}T23:59:59.999Z`)
@@ -66,7 +66,7 @@ export default function UserDashboard() {
           console.log('Session refreshed, retrying data fetch...');
           const { data: retryData, error: retryError } = await supabase
             .from('aditi_daily_updates')
-            .select('*, aditi_teams(*)')
+            .select('*')
             .eq('employee_email', user?.email)
             .gte('created_at', `${dateRange.start}T00:00:00.000Z`)
             .lte('created_at', `${dateRange.end}T23:59:59.999Z`)
@@ -76,7 +76,28 @@ export default function UserDashboard() {
             throw retryError;
           }
           
-          setUserUpdates(retryData || []);
+          // Now fetch team data separately
+          if (retryData && retryData.length > 0) {
+            const teamIds = [...new Set(retryData.map(update => update.team_id))];
+            const { data: teamsData } = await supabase
+              .from('aditi_teams')
+              .select('*')
+              .in('id', teamIds);
+            
+            // Merge team data with updates
+            const updatesWithTeams = retryData.map(update => {
+              const team = teamsData?.find(t => t.id === update.team_id);
+              return {
+                ...update,
+                aditi_teams: team || null
+              };
+            });
+            
+            setUserUpdates(updatesWithTeams || []);
+          } else {
+            setUserUpdates([]);
+          }
+          
           setLastFetched(new Date());
           setDataLoaded(true);
           return;
@@ -85,7 +106,28 @@ export default function UserDashboard() {
         throw error;
       }
       
-      setUserUpdates(data || []);
+      // Fetch team data separately
+      if (data && data.length > 0) {
+        const teamIds = [...new Set(data.map(update => update.team_id))];
+        const { data: teamsData } = await supabase
+          .from('aditi_teams')
+          .select('*')
+          .in('id', teamIds);
+        
+        // Merge team data with updates
+        const updatesWithTeams = data.map(update => {
+          const team = teamsData?.find(t => t.id === update.team_id);
+          return {
+            ...update,
+            aditi_teams: team || null
+          };
+        });
+        
+        setUserUpdates(updatesWithTeams || []);
+      } else {
+        setUserUpdates([]);
+      }
+      
       setLastFetched(new Date());
       setDataLoaded(true);
     } catch (error) {
@@ -253,13 +295,19 @@ export default function UserDashboard() {
                   <thead className="bg-[#262d40]">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Date
+                        Created
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Date Range
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Team
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Status
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Points
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Tasks
@@ -283,11 +331,29 @@ export default function UserDashboard() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                             {formatDate(update.created_at)}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                            {update.start_date && update.end_date ? (
+                              <>
+                                {new Date(update.start_date).toLocaleDateString()} - {new Date(update.end_date).toLocaleDateString()}
+                              </>
+                            ) : (
+                              <span className="text-gray-400">Not specified</span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
                             {update.aditi_teams?.team_name || 'Unknown Team'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {getStatusBadge(update.status)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                            {update.story_points !== null ? (
+                              <span className="px-2 py-1 text-xs font-medium rounded-full bg-indigo-900 text-indigo-200">
+                                {update.story_points}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-200 max-w-xs truncate">
                             {update.tasks_completed}
@@ -315,11 +381,17 @@ export default function UserDashboard() {
                         </tr>
                         {expandedRows[update.id] && (
                           <tr className="bg-[#262d40]">
-                            <td colSpan={6} className="px-8 py-4 text-sm text-gray-200">
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-2">
+                            <td colSpan={8} className="px-8 py-4 text-sm text-gray-200">
+                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-2">
                                 <div>
                                   <h4 className="font-medium text-purple-300 mb-2">Tasks Completed</h4>
                                   <p className="whitespace-pre-wrap">{update.tasks_completed || 'None'}</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium text-purple-300 mb-2">Task Details</h4>
+                                  <p className="mb-1"><span className="font-medium">Date Range:</span> {update.start_date ? new Date(update.start_date).toLocaleDateString() : 'Not specified'} - {update.end_date ? new Date(update.end_date).toLocaleDateString() : 'Not specified'}</p>
+                                  <p className="mb-1"><span className="font-medium">Story Points:</span> {update.story_points !== null ? update.story_points : 'Not specified'}</p>
+                                  <p className="mb-1"><span className="font-medium">Status:</span> {update.status}</p>
                                 </div>
                                 <div>
                                   <h4 className="font-medium text-purple-300 mb-2">Blockers</h4>
@@ -336,7 +408,7 @@ export default function UserDashboard() {
                                   )}
                                 </div>
                                 {update.additional_notes && (
-                                  <div className="lg:col-span-2">
+                                  <div className="lg:col-span-3">
                                     <h4 className="font-medium text-purple-300 mb-2">Additional Notes</h4>
                                     <p className="whitespace-pre-wrap">{update.additional_notes}</p>
                                   </div>

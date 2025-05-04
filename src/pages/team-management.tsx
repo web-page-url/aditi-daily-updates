@@ -157,41 +157,11 @@ export default function TeamManagement() {
     setTeamError('');
 
     try {
-      // Validate input data
-      const validationErrors = [];
-      if (!newTeam.team_name.trim()) validationErrors.push('Team name is required');
-      if (!newTeam.manager_email.trim()) validationErrors.push('Manager email is required');
+      // Simplified validation
+      if (!newTeam.team_name.trim()) throw new Error('Team name is required');
+      if (!newTeam.manager_email.trim()) throw new Error('Manager email is required');
 
-      // Validate format
-      if (!/^[A-Za-z0-9\s-]+$/.test(newTeam.team_name)) {
-        validationErrors.push('Team name can only contain letters, numbers, spaces, and hyphens');
-      }
-      if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(newTeam.manager_email)) {
-        validationErrors.push('Please enter a valid manager email address');
-      }
-
-      if (validationErrors.length > 0) {
-        throw new Error(validationErrors.join('\n'));
-      }
-
-      console.log('Creating new team:', newTeam);
-
-      // Check for duplicate team name
-      const { data: existingTeam, error: checkError, count } = await supabase
-        .from('aditi_teams')
-        .select('id', { count: 'exact' })
-        .eq('team_name', newTeam.team_name.trim());
-
-      if (checkError) {
-        console.error('Error checking for existing team:', checkError);
-        throw new Error(`Database error checking team name: ${checkError.message}`);
-      }
-
-      if (existingTeam && existingTeam.length > 0) {
-        throw new Error('A team with this name already exists');
-      }
-
-      // Insert the new team
+      // Insert the new team directly
       const { data, error } = await supabase
         .from('aditi_teams')
         .insert([{
@@ -202,10 +172,8 @@ export default function TeamManagement() {
 
       if (error) {
         console.error('Error creating team:', error);
-        throw new Error(`Database error creating team: ${error.message}`);
+        throw new Error(`Database error: ${error.message}`);
       }
-
-      console.log('Team created successfully:', data);
 
       // Success
       toast.success('Team created successfully!');
@@ -217,7 +185,6 @@ export default function TeamManagement() {
       await fetchTeams();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create team';
-      console.error('Team creation error:', error);
       setTeamError(errorMessage);
       toast.error(errorMessage);
     } finally {

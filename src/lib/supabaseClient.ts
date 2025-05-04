@@ -162,6 +162,9 @@ export interface DailyUpdate {
   blocker_description: string | null;
   expected_resolution_date: string | null;
   additional_notes: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  story_points: number | null;
   aditi_teams?: {
     id: string;
     team_name: string;

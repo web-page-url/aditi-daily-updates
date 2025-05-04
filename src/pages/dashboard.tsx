@@ -401,7 +401,7 @@ export default function Dashboard() {
       
       let query = supabase
         .from('aditi_daily_updates')
-        .select('*, aditi_teams(*)');
+        .select('*');
 
       // Admin with no team filter sees all data
       if (user?.role === 'admin' && !teamFilter) {
@@ -438,10 +438,32 @@ export default function Dashboard() {
       
       console.log('Data fetched successfully, total records:', data?.length || 0);
       
+      // Fetch team data separately and add it to updates
+      let updatesWithTeams = data || [];
+      if (data && data.length > 0) {
+        // Get unique team IDs from updates
+        const teamIds = [...new Set(data.map(update => update.team_id))];
+        
+        // Fetch all relevant teams
+        const { data: teamsData } = await supabase
+          .from('aditi_teams')
+          .select('*')
+          .in('id', teamIds);
+        
+        // Add team data to each update
+        updatesWithTeams = data.map(update => {
+          const team = teamsData?.find(t => t.id === update.team_id);
+          return {
+            ...update,
+            aditi_teams: team || null
+          };
+        });
+      }
+      
       // Update state with fetched data
-      setHistoricalData(data || []);
-      setFilteredData(data || []);
-      calculateStats(data || []);
+      setHistoricalData(updatesWithTeams);
+      setFilteredData(updatesWithTeams);
+      calculateStats(updatesWithTeams);
       
       const now = new Date();
       setLastRefreshed(now);
@@ -450,7 +472,7 @@ export default function Dashboard() {
       // Update localStorage with latest data
       if (user?.email) {
         try {
-          localStorage.setItem(`dashboard_historicalData_${user.email}`, JSON.stringify(data || []));
+          localStorage.setItem(`dashboard_historicalData_${user.email}`, JSON.stringify(updatesWithTeams));
           localStorage.setItem(`dashboard_lastRefreshed_${user.email}`, now.toISOString());
           
           // Don't store filtered data yet as applyFilters will run and update it
@@ -494,7 +516,7 @@ export default function Dashboard() {
           // Rebuild the query
           let retryQuery = supabase
             .from('aditi_daily_updates')
-            .select('*, aditi_teams(*)');
+            .select('*');
             
           if (user?.role === 'admin' && !teamFilter) {
             // No additional filters needed - admin sees all
@@ -517,10 +539,32 @@ export default function Dashboard() {
             throw retryError;
           }
           
+          // Fetch team data separately and add it to updates
+          let updatesWithTeams = retryData || [];
+          if (retryData && retryData.length > 0) {
+            // Get unique team IDs from updates
+            const teamIds = [...new Set(retryData.map(update => update.team_id))];
+            
+            // Fetch all relevant teams
+            const { data: teamsData } = await supabase
+              .from('aditi_teams')
+              .select('*')
+              .in('id', teamIds);
+            
+            // Add team data to each update
+            updatesWithTeams = retryData.map(update => {
+              const team = teamsData?.find(t => t.id === update.team_id);
+              return {
+                ...update,
+                aditi_teams: team || null
+              };
+            });
+          }
+          
           // Update state with retry data
-          setHistoricalData(retryData || []);
-          setFilteredData(retryData || []);
-          calculateStats(retryData || []);
+          setHistoricalData(updatesWithTeams);
+          setFilteredData(updatesWithTeams);
+          calculateStats(updatesWithTeams);
           
           const now = new Date();
           setLastRefreshed(now);
@@ -529,7 +573,7 @@ export default function Dashboard() {
           // Update localStorage with latest data
           if (user?.email) {
             try {
-              localStorage.setItem(`dashboard_historicalData_${user.email}`, JSON.stringify(retryData || []));
+              localStorage.setItem(`dashboard_historicalData_${user.email}`, JSON.stringify(updatesWithTeams));
               localStorage.setItem(`dashboard_lastRefreshed_${user.email}`, now.toISOString());
             } catch (error) {
               console.error('Error saving retry data to localStorage:', error);
@@ -568,7 +612,7 @@ export default function Dashboard() {
       console.log('Silent data refresh starting, teamFilter:', teamFilter);
       let query = supabase
         .from('aditi_daily_updates')
-        .select('*, aditi_teams(*)');
+        .select('*');
 
       // Admin with no team filter sees all data
       if (user?.role === 'admin' && !teamFilter) {
@@ -594,10 +638,32 @@ export default function Dashboard() {
 
       if (error) throw error;
       
+      // Fetch team data separately and add it to updates
+      let updatesWithTeams = data || [];
+      if (data && data.length > 0) {
+        // Get unique team IDs from updates
+        const teamIds = [...new Set(data.map(update => update.team_id))];
+        
+        // Fetch all relevant teams
+        const { data: teamsData } = await supabase
+          .from('aditi_teams')
+          .select('*')
+          .in('id', teamIds);
+        
+        // Add team data to each update
+        updatesWithTeams = data.map(update => {
+          const team = teamsData?.find(t => t.id === update.team_id);
+          return {
+            ...update,
+            aditi_teams: team || null
+          };
+        });
+      }
+      
       // Update state with fetched data
-      setHistoricalData(data || []);
-      setFilteredData(data || []);
-      calculateStats(data || []);
+      setHistoricalData(updatesWithTeams);
+      setFilteredData(updatesWithTeams);
+      calculateStats(updatesWithTeams);
       
       const now = new Date();
       setLastRefreshed(now);
@@ -606,7 +672,7 @@ export default function Dashboard() {
       // Update localStorage with latest data
       if (user?.email) {
         try {
-          localStorage.setItem(`dashboard_historicalData_${user.email}`, JSON.stringify(data || []));
+          localStorage.setItem(`dashboard_historicalData_${user.email}`, JSON.stringify(updatesWithTeams));
           localStorage.setItem(`dashboard_lastRefreshed_${user.email}`, now.toISOString());
         } catch (error) {
           console.error('Error saving fetched data to localStorage:', error);
@@ -686,6 +752,9 @@ export default function Dashboard() {
   const exportToCSV = () => {
     const headers = [
       'Date',
+      'Start Date',
+      'End Date',
+      'Story Points',
       'Team',
       'Employee',
       'Tasks Completed',
@@ -699,6 +768,9 @@ export default function Dashboard() {
       headers.join(','),
       ...filteredData.map(update => [
         new Date(update.created_at).toLocaleDateString(),
+        update.start_date ? new Date(update.start_date).toLocaleDateString() : '',
+        update.end_date ? new Date(update.end_date).toLocaleDateString() : '',
+        update.story_points !== null ? update.story_points : '',
         update.aditi_teams?.team_name || team_name_from_teams(update) || '',
         update.employee_email,
         update.tasks_completed,
@@ -1047,7 +1119,13 @@ export default function Dashboard() {
                             <thead className="bg-[#262d40]">
                               <tr>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-[120px]">
-                                  Date
+                                  Created
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-[120px]">
+                                  Date Range
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-[80px]">
+                                  Points
                                 </th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-[150px]">
                                   Team
@@ -1088,6 +1166,24 @@ export default function Dashboard() {
                                         {new Date(item.created_at).toLocaleDateString()}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                        {item.start_date && item.end_date ? (
+                                          <>
+                                            {new Date(item.start_date).toLocaleDateString()} - {new Date(item.end_date).toLocaleDateString()}
+                                          </>
+                                        ) : (
+                                          '-'
+                                        )}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                        {item.story_points !== null ? (
+                                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-indigo-900 text-indigo-200">
+                                            {item.story_points}
+                                          </span>
+                                        ) : (
+                                          '-'
+                                        )}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                                         {team?.team_name || '-'}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1123,35 +1219,44 @@ export default function Dashboard() {
                                     </tr>
                                     {isExpanded && (
                                       <tr>
-                                        <td colSpan={8} className="px-6 py-4 bg-[#1e2538]">
+                                        <td colSpan={10} className="px-6 py-4 bg-[#1e2538]">
                                           <div className="space-y-4">
-                                            <div>
-                                              <h4 className="text-sm font-medium text-gray-300 mb-2">Tasks Completed</h4>
-                                              <p className="text-sm text-white whitespace-pre-wrap">{item.tasks_completed}</p>
-                                            </div>
-                                            
-                                            {item.blocker_type && (
-                                              <>
-                                                <h4 className="text-sm font-medium text-gray-300 mb-2">Blockers / Risks / Dependencies</h4>
-                                                <div className="space-y-2">
-                                                  <div className="bg-[#1e2538] p-3 rounded-md">
-                                                    <div className="flex items-center space-x-2 mb-1">
-                                                      <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                                                        item.blocker_type === 'Risks' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        item.blocker_type === 'Blockers' ? 'bg-red-500/20 text-red-400' :
-                                                        'bg-blue-500/20 text-blue-400'
-                                                      }`}>
-                                                        {item.blocker_type}
-                                                      </span>
-                                                      <span className="text-xs text-gray-400">
-                                                        Resolution: {item.expected_resolution_date ? new Date(item.expected_resolution_date).toLocaleDateString() : 'Not set'}
-                                                      </span>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                              <div>
+                                                <h4 className="text-sm font-medium text-gray-300 mb-2">Tasks Completed</h4>
+                                                <p className="text-sm text-white whitespace-pre-wrap">{item.tasks_completed}</p>
+                                              </div>
+                                              
+                                              <div>
+                                                <h4 className="text-sm font-medium text-gray-300 mb-2">Task Details</h4>
+                                                <p className="text-sm mb-1"><span className="text-gray-400">Date Range:</span> {item.start_date ? new Date(item.start_date).toLocaleDateString() : '-'} - {item.end_date ? new Date(item.end_date).toLocaleDateString() : '-'}</p>
+                                                <p className="text-sm mb-1"><span className="text-gray-400">Story Points:</span> {item.story_points !== null ? item.story_points : 'Not specified'}</p>
+                                                <p className="text-sm mb-1"><span className="text-gray-400">Status:</span> {item.status}</p>
+                                              </div>
+                                              
+                                              {item.blocker_type && (
+                                                <div>
+                                                  <h4 className="text-sm font-medium text-gray-300 mb-2">Blockers / Risks / Dependencies</h4>
+                                                  <div className="space-y-2">
+                                                    <div className="bg-[#1e2538] p-3 rounded-md">
+                                                      <div className="flex items-center space-x-2 mb-1">
+                                                        <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                                                          item.blocker_type === 'Risks' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                          item.blocker_type === 'Blockers' ? 'bg-red-500/20 text-red-400' :
+                                                          'bg-blue-500/20 text-blue-400'
+                                                        }`}>
+                                                          {item.blocker_type}
+                                                        </span>
+                                                        <span className="text-xs text-gray-400">
+                                                          Resolution: {item.expected_resolution_date ? new Date(item.expected_resolution_date).toLocaleDateString() : 'Not set'}
+                                                        </span>
+                                                      </div>
+                                                      <p className="text-sm text-white whitespace-pre-wrap">{item.blocker_description}</p>
                                                     </div>
-                                                    <p className="text-sm text-white whitespace-pre-wrap">{item.blocker_description}</p>
                                                   </div>
                                                 </div>
-                                              </>
-                                            )}
+                                              )}
+                                            </div>
 
                                             {item.additional_notes && (
                                               <>
